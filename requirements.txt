@@ -3,3 +3,7 @@ pandas
 numpy
 pydeck
 matplotlib
+scikit-learn
+tensorflow
+xgboost
+joblib
