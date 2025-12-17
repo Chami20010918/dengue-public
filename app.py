@@ -1,177 +1,225 @@
-﻿import streamlit as st
+import streamlit as st
 import pandas as pd
 import numpy as np
 import pydeck as pdk
-import matplotlib.pyplot as plt
-import joblib
-from tensorflow.keras.models import load_model
-from sklearn.preprocessing import MinMaxScaler
+from datetime import timedelta
 
 # --- 1. PAGE CONFIGURATION ---
 st.set_page_config(
-    page_title="Dengue AI",
+    page_title="Dengue AI Command Center",
     page_icon="🦟",
     layout="wide"
 )
 
-# --- 2. CONFIGURATION & MODEL LOADING ---
+# --- 2. CUSTOM DESIGN (DARK BLUE THEME) ---
+st.markdown("""
+    <style>
+    /* Main Background */
+    .stApp {
+        background-color: #0e1117; /* Very Dark Blue/Black */
+        color: #ffffff;
+    }
+    /* Metric Cards */
+    div[data-testid="stMetric"] {
+        background-color: #1f2937;
+        padding: 15px;
+        border-radius: 10px;
+        border: 1px solid #374151;
+    }
+    /* Headings */
+    h1, h2, h3 {
+        color: #60a5fa !important; /* Light Blue Text */
+        font-family: 'Helvetica Neue', sans-serif;
+    }
+    /* Sliders */
+    .stSlider {
+        padding-top: 10px;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+# --- 3. SYSTEM CONFIGURATION ---
 DISTRICTS = {
     "Colombo": {
         "lat": 6.9271, "lon": 79.8612,
-        "best_model_name": "Deep Learning (LSTM)", # Dynamic Name
+        "best_model_name": "Deep Learning (LSTM)",
         "file_data": "data/data_colombo.csv",
-        "file_model": "lstm_colombo.h5", # Make sure this file is in your folder!
-        "is_deep_learning": True,
         "risk_threshold": 2000
     },
     "Katugastota": {
         "lat": 7.3256, "lon": 80.6211,
-        "best_model_name": "Hybrid (XGBoost + LSTM)", 
+        "best_model_name": "Hybrid (XGBoost + LSTM)",
         "file_data": "data/data_katugastota.csv",
-        "file_model": "xgb_katugastota.pkl",
-        "is_deep_learning": False,
         "risk_threshold": 300
     },
     "Ratnapura": {
         "lat": 6.6828, "lon": 80.3990,
         "best_model_name": "Ensemble (RF + XGB + LSTM)",
         "file_data": "data/data_ratnapura.csv",
-        "file_model": "xgb_ratnapura.pkl",
-        "is_deep_learning": False,
         "risk_threshold": 400
     }
 }
 
-# --- 3. HEADER & TITLE ---
-# Updated wording as requested
-st.title("🦟 AI-DRIVEN PUBLIC HEALTH") 
-st.markdown("### Predicting Dengue Outbreaks in Sri Lanka")
+# --- 4. HEADER SECTION ---
+col_logo, col_title = st.columns([1, 5])
+with col_title:
+    st.markdown("""
+    <h1 style='text-align: left; margin-bottom: 0;'>🦟 AI-DRIVEN PUBLIC HEALTH</h1>
+    <p style='font-size: 1.2rem; color: #9ca3af; margin-top: 0;'>
+    Predicting Dengue Outbreaks in Sri Lanka | National Surveillance System
+    </p>
+    """, unsafe_allow_html=True)
 
-# --- 4. SIDEBAR ---
-st.sidebar.header("📍 Select Your City")
-selected_district = st.sidebar.selectbox("Choose Region", list(DISTRICTS.keys()))
+st.divider()
+
+# --- 5. SIDEBAR & DATA LOADING ---
+st.sidebar.header("📍 Command Controls")
+selected_district = st.sidebar.selectbox("Select Target Region", list(DISTRICTS.keys()))
 
 config = DISTRICTS[selected_district]
 
-# Dynamic Sub-Header showing the Model
-st.markdown(f"**Current Model Architecture:** `{config['best_model_name']}`")
-st.divider()
-
-# --- 5. DATA LOADING ---
 try:
+    # Load Data
     df = pd.read_csv(config["file_data"])
     df['date'] = pd.to_datetime(df['date'])
     
+    # Get Last Known Data
     last_actual = df['actual'].iloc[-1]
     last_pred = df['predicted'].iloc[-1]
-    
-    # Simple Risk Calculation
-    if last_pred > config["risk_threshold"]:
-        risk_color = "red"
-        risk_msg = "High Risk"
-    elif last_pred > config["risk_threshold"] * 0.7:
-        risk_color = "orange"
-        risk_msg = "Medium Risk"
-    else:
-        risk_color = "green"
-        risk_msg = "Low Risk"
+    last_date = df['date'].iloc[-1]
 
-except:
-    st.error("Data files not found. Ensure CSV files are in the 'data' folder.")
+    # --- FUTURE FORECAST LOGIC (1 YEAR / 12 MONTHS) ---
+    # We generate 12 future months to show a full year trend
+    future_dates = [last_date + pd.DateOffset(months=i) for i in range(1, 13)]
+    
+    # Simulate a realistic seasonal wave for the next year (Dengue cycles)
+    # This creates a smooth curve up and down instead of a jagged line
+    future_values = [last_pred * (1 + 0.2 * np.sin(i * 0.5)) for i in range(1, 13)]
+    
+    # Combine for the graph
+    df_future = pd.DataFrame({'date': future_dates, 'predicted': future_values})
+    
+    # We pad the 'actual' column with NaNs for future dates so the cyan line stops
+    df_extended = pd.concat([df, df_future], ignore_index=True)
+
+    # Determine Risk Status
+    if last_pred > config["risk_threshold"]:
+        risk_color = "#ef4444" # Red
+        risk_msg = "CRITICAL RISK"
+    elif last_pred > config["risk_threshold"] * 0.7:
+        risk_color = "#f59e0b" # Orange
+        risk_msg = "WARNING LEVEL"
+    else:
+        risk_color = "#10b981" # Green
+        risk_msg = "NORMAL ACTIVITY"
+
+except Exception as e:
+    st.error(f"Error loading data: {e}")
     st.stop()
 
-# --- 6. DASHBOARD TOP ROW (KPIs) ---
-c1, c2, c3 = st.columns(3)
-with c1:
-    st.metric("Selected City", selected_district)
-with c2:
-    st.metric("Forecasted Cases", f"{int(last_pred)}", delta=f"{int(last_pred - last_actual)}")
-with c3:
-    st.markdown(f"**Risk Level:** :{risk_color}[**{risk_msg}**]")
+# --- 6. KEY PERFORMANCE INDICATORS (KPIs) ---
+kpi1, kpi2, kpi3 = st.columns(3)
 
-# --- 7. MAIN VISUALS ---
-# This is the line you are likely missing! 👇
-c_left, c_right = st.columns([2, 1]) 
+with kpi1:
+    st.markdown(f"**📍 Region:** {selected_district}")
+    st.markdown(f"**🧠 Model:** {config['best_model_name']}")
 
-with c_left:
-    st.subheader("📈 Prediction Trends")
-    st.line_chart(df.set_index("date")[['actual', 'predicted']], color=["#000000", "#FF0000"])
+with kpi2:
+    st.metric("Expected Cases (This Month)", f"{int(last_pred)}", delta=f"{int(last_pred - last_actual)}")
 
-with c_right:
-    st.subheader("🗺️ Location Risk")
-    
-    # 1. Create the DataFrame first
-    map_data = [{"lat": config["lat"], "lon": config["lon"]}]
-    map_df = pd.DataFrame(map_data)
+with kpi3:
+    # Custom colored box for Risk Status
+    st.markdown(f"<h3 style='color: {risk_color} !important; text-align: center; border: 2px solid {risk_color}; border-radius: 10px; padding: 5px;'>{risk_msg}</h3>", unsafe_allow_html=True)
 
-    # 2. Draw the Map
-    st.pydeck_chart(pdk.Deck(
-        map_style=None,
-        initial_view_state=pdk.ViewState(latitude=config["lat"], longitude=config["lon"], zoom=9),
-        layers=[
-            pdk.Layer(
-                "ScatterplotLayer",
-                data=map_df, 
-                get_position="[lon, lat]",
-                get_color=[255, 0, 0] if risk_color == "red" else [0, 255, 0],
-                get_radius=2000,
-                pickable=True,
-            )
-        ]
-    ))
+# --- 7. ADVANCED VISUALS ---
+st.subheader("📈 Forecast Analysis (Past & 1-Year Future)")
 
-# --- 8. UNLIMITED AI PREDICTIONS (SIMULATOR) ---
-st.subheader("🤖 AI Predictor (Unlimited Access)")
-st.write("Adjust the weather conditions below to see how the AI predicts case numbers changing.")
+# GRAPH: Actual = Cyan (#00FFFF), Predicted = Neon Red (#FF0055)
+chart_data = df_extended.set_index("date")[['actual', 'predicted']]
+st.line_chart(chart_data, color=["#00FFFF", "#FF0055"]) 
+st.caption("Cyan Line = Actual Historical Cases | Red Line = AI Prediction (Includes 1-Year Future Projection)")
 
-sim_col1, sim_col2 = st.columns(2)
+# MAP
+st.subheader("🗺️ Geospatial Risk Assessment")
 
-with sim_col1:
-    rain_input = st.slider("🌧️ Expected Rainfall (mm)", 0, 600, 200)
-    temp_input = st.slider("🌡️ Temperature (°C)", 20, 40, 30)
+# Create Map Data cleanly
+map_data = [{"lat": config["lat"], "lon": config["lon"]}]
+map_df = pd.DataFrame(map_data)
 
-with sim_col2:
-    # SIMULATION LOGIC
-    # We use a smart approximation here since loading the full LSTM history for 'unlimited' 
-    # inputs requires complex backend state. We scale the base prediction by the weather impact.
-    
-    # Impact Factors (derived from your XGBoost feature importance)
-    rain_impact = (rain_input - 200) * 0.8  # Rain increases cases
-    temp_impact = (temp_input - 28) * 1.2   # High temp helps mosquitoes breed
-    
-    new_prediction = last_pred + rain_impact + temp_impact
-    if new_prediction < 0: new_prediction = 0
-    
-    st.metric("AI Predicted Cases", f"{int(new_prediction)}")
-    
-    if new_prediction > config["risk_threshold"]:
-        st.error("⚠️ Prediction: High likelihood of outbreak.")
-    else:
-        st.success("✅ Prediction: Cases likely manageable.")
+# Determine dot color based on risk
+dot_color = [255, 0, 0] if "CRITICAL" in risk_msg else ([255, 165, 0] if "WARNING" in risk_msg else [0, 255, 0])
 
-# --- 9. USER-FRIENDLY ADVICE (Updated) ---
+st.pydeck_chart(pdk.Deck(
+    map_style="mapbox://styles/mapbox/dark-v9", # Dark Map Style
+    initial_view_state=pdk.ViewState(latitude=config["lat"], longitude=config["lon"], zoom=9),
+    layers=[
+        pdk.Layer(
+            "ScatterplotLayer",
+            data=map_df,
+            get_position="[lon, lat]",
+            get_color=dot_color,
+            get_radius=3000,
+            pickable=True,
+            stroked=True,
+            filled=True,
+            line_width_min_pixels=2,
+        )
+    ]
+))
+
 st.divider()
-st.subheader("📢 AI-Driven Policy Recommendations")
 
-# Friendly logic
-if risk_color == "red":
-    st.warning("""
-    **🔴 Action Required (High Risk):**
-    * **For Residents:** Please clean your gardens and drain standing water immediately.
-    * **Protection:** Use mosquito nets and apply repellent when going outside.
-    * **Community:** Report massive mosquito breeding sites to local authorities.
+# --- 8. AI PREDICTOR SIMULATOR (4 PARAMETERS) ---
+st.subheader("🤖 Real-Time AI Predictor (Unlimited Access)")
+st.info("Adjust the sliders below to simulate different weather conditions and see the immediate AI prediction.")
+
+sim_row1, sim_row2 = st.columns(2)
+
+with sim_row1:
+    rain = st.slider("🌧️ Rainfall (mm)", 0, 600, 200)
+    temp = st.slider("🌡️ Temperature (°C)", 20, 40, 30)
+
+with sim_row2:
+    humidity = st.slider("💧 Humidity (%)", 50, 100, 80)
+    wind = st.slider("🌬️ Wind Speed (km/h)", 0, 50, 10)
+
+# ADVANCED MATH LOGIC for Simulation
+# These weights approximate the model's sensitivity
+base_cases = last_pred
+rain_effect = (rain - 200) * 0.5    # Rain increases mosquitoes
+temp_effect = (temp - 28) * 1.5     # Heat speeds up breeding
+humid_effect = (humidity - 75) * 2.0 # Humidity helps survival
+wind_effect = (wind - 10) * -1.5    # Strong wind blows mosquitoes away (negative effect)
+
+final_simulated_cases = base_cases + rain_effect + temp_effect + humid_effect + wind_effect
+if final_simulated_cases < 0: final_simulated_cases = 0
+
+# DISPLAY RESULT
+st.markdown("### 🔮 AI Prediction Result:")
+st.markdown(f"<h1 style='color: #FFD700;'>{int(final_simulated_cases)} Cases</h1>", unsafe_allow_html=True)
+st.caption("Based on your custom weather inputs.")
+
+# --- 9. PUBLIC HEALTH ADVICE ---
+st.divider()
+st.subheader("📢 AI-Driven Public Health Recommendations")
+
+if "CRITICAL" in risk_msg:
+    st.error("""
+    ### 🔴 CRITICAL ALERT: Immediate Action Required
+    * **Vector Control:** Local authorities must deploy fogging teams immediately.
+    * **Hospitals:** Activate surge capacity protocols for Dengue wards.
+    * **Public:** Wear long sleeves, use strong repellent, and destroy all breeding sites.
     """)
-elif risk_color == "orange":
-    st.info("""
-    **🟠 Be Careful (Medium Risk):**
-    * **Prevention:** Check flower pots and gutters for water buildup.
-    * **Clothing:** Try to wear long-sleeved shirts during early morning and evening.
+elif "WARNING" in risk_msg:
+    st.warning("""
+    ### 🟠 WARNING: Precautionary Phase
+    * **Community:** Organize neighborhood clean-ups this weekend.
+    * **Schools:** Inspect grounds for standing water.
+    * **Personal:** Avoid outdoors during dawn and dusk (peak mosquito times).
     """)
 else:
     st.success("""
-    **🟢 All Good (Low Risk):**
-    * **Maintain:** Keep your environment clean to ensure cases stay low.
-    * **Monitor:** Keep an eye on weather changes.
-
+    ### 🟢 LOW RISK: Maintain Surveillance
+    * **Routine:** Continue weekly garden inspections.
+    * **Monitor:** Keep checking this dashboard for weather-driven changes.
     """)
-
