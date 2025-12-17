@@ -150,7 +150,7 @@ map_df = pd.DataFrame(map_data)
 dot_color = [255, 0, 0] if "CRITICAL" in risk_msg else ([255, 165, 0] if "WARNING" in risk_msg else [0, 255, 0])
 
 st.pydeck_chart(pdk.Deck(
-    map_style="mapbox://styles/mapbox/dark-v9", # Dark Map Style
+    map_style=None,  # <--- CHANGED THIS: 'None' works for free without an API key
     initial_view_state=pdk.ViewState(latitude=config["lat"], longitude=config["lon"], zoom=9),
     layers=[
         pdk.Layer(
@@ -166,6 +166,9 @@ st.pydeck_chart(pdk.Deck(
         )
     ]
 ))
+
+# Determine dot color based on risk
+
 
 st.divider()
 
@@ -223,3 +226,4 @@ else:
     * **Routine:** Continue weekly garden inspections.
     * **Monitor:** Keep checking this dashboard for weather-driven changes.
     """)
+
