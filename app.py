@@ -89,10 +89,18 @@ with c2:
 with c3:
     st.markdown(f"**Risk Level:** :{risk_color}[**{risk_msg}**]")
 
+# --- 7. MAIN VISUALS ---
+# This is the line you are likely missing! 👇
+c_left, c_right = st.columns([2, 1]) 
+
+with c_left:
+    st.subheader("📈 Prediction Trends")
+    st.line_chart(df.set_index("date")[['actual', 'predicted']], color=["#000000", "#FF0000"])
+
 with c_right:
     st.subheader("🗺️ Location Risk")
     
-    # 1. Create the DataFrame first (Fixing the Syntax Error)
+    # 1. Create the DataFrame first
     map_data = [{"lat": config["lat"], "lon": config["lon"]}]
     map_df = pd.DataFrame(map_data)
 
@@ -103,7 +111,7 @@ with c_right:
         layers=[
             pdk.Layer(
                 "ScatterplotLayer",
-                data=map_df,  # Now we just use the variable we created above
+                data=map_df, 
                 get_position="[lon, lat]",
                 get_color=[255, 0, 0] if risk_color == "red" else [0, 255, 0],
                 get_radius=2000,
@@ -166,3 +174,4 @@ else:
     * **Monitor:** Keep an eye on weather changes.
 
     """)
+
