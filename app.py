@@ -89,24 +89,21 @@ with c2:
 with c3:
     st.markdown(f"**Risk Level:** :{risk_color}[**{risk_msg}**]")
 
-# --- 7. MAIN VISUALS ---
-c_left, c_right = st.columns([2, 1])
-
-with c_left:
-    st.subheader("📈 Prediction Trends")
-    st.line_chart(df.set_index("date")[['actual', 'predicted']], color=["#000000", "#FF0000"])
-
 with c_right:
     st.subheader("🗺️ Location Risk")
-    # Map Logic
+    
+    # 1. Create the DataFrame first (Fixing the Syntax Error)
     map_data = [{"lat": config["lat"], "lon": config["lon"]}]
+    map_df = pd.DataFrame(map_data)
+
+    # 2. Draw the Map
     st.pydeck_chart(pdk.Deck(
         map_style=None,
         initial_view_state=pdk.ViewState(latitude=config["lat"], longitude=config["lon"], zoom=9),
         layers=[
             pdk.Layer(
                 "ScatterplotLayer",
-                data=map_df := pd.DataFrame(map_data),
+                data=map_df,  # Now we just use the variable we created above
                 get_position="[lon, lat]",
                 get_color=[255, 0, 0] if risk_color == "red" else [0, 255, 0],
                 get_radius=2000,
@@ -114,8 +111,6 @@ with c_right:
             )
         ]
     ))
-
-st.divider()
 
 # --- 8. UNLIMITED AI PREDICTIONS (SIMULATOR) ---
 st.subheader("🤖 AI Predictor (Unlimited Access)")
@@ -169,4 +164,5 @@ else:
     **🟢 All Good (Low Risk):**
     * **Maintain:** Keep your environment clean to ensure cases stay low.
     * **Monitor:** Keep an eye on weather changes.
+
     """)
