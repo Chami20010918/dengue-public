@@ -5,51 +5,47 @@ import pydeck as pdk
 
 # --- 1. PAGE CONFIGURATION ---
 st.set_page_config(
-    page_title="AUTODENGUE | National Surveillance",
+    page_title="AUTODENGUE | Command Center",
     page_icon="🦟",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# --- 2. PROFESSIONAL LIGHT THEME CSS ---
+# --- 2. DARK CYBERPUNK CSS ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
 
-    /* GLOBAL SETTINGS (LIGHT MODE) */
+    /* GLOBAL DARK THEME */
     .stApp {
-        background-color: #f8f9fa; /* Very Light Grey */
-        color: #1f2937; /* Dark Grey Text */
+        background-color: #000000;
+        color: #e0e0e0;
         font-family: 'Inter', sans-serif;
     }
     
     /* REMOVE PADDING */
-    .block-container {
-        padding-top: 2rem;
-        padding-bottom: 2rem;
-    }
+    .block-container { padding-top: 1rem; padding-bottom: 2rem; }
 
     /* --- HEADER STYLES --- */
     .header-container {
-        border-bottom: 2px solid #e5e7eb;
+        border-bottom: 1px solid #333;
         padding-bottom: 20px;
         margin-bottom: 30px;
         text-align: center;
-        background: white;
+        background: #09090b;
         padding-top: 20px;
         border-radius: 15px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        border: 1px solid #27272a;
     }
     .sub-header {
-        color: #4b5563; /* Dark Grey - VISIBLE NOW */
-        font-size: 0.9rem;
-        letter-spacing: 3px;
+        color: #a1a1aa;
+        font-size: 0.85rem;
+        letter-spacing: 4px;
         text-transform: uppercase;
-        font-weight: 700;
-        margin-bottom: 5px;
+        font-weight: 600;
     }
     .main-title {
-        background: linear-gradient(90deg, #2563eb, #0ea5e9); /* Blue Gradient */
+        background: linear-gradient(90deg, #22d3ee, #bef264);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         font-size: 3.5rem;
@@ -59,65 +55,73 @@ st.markdown("""
         justify-content: center;
         align-items: center;
         gap: 15px;
+        text-shadow: 0 0 20px rgba(34, 211, 238, 0.3);
     }
     .mosquito-icon {
         font-size: 3.5rem;
         animation: float 3s ease-in-out infinite;
-        filter: drop-shadow(0 2px 2px rgba(0,0,0,0.1));
+        filter: drop-shadow(0 0 10px rgba(34, 211, 238, 0.5));
     }
     @keyframes float {
         0% { transform: translateY(0px); }
-        50% { transform: translateY(-5px); }
+        50% { transform: translateY(-8px); }
         100% { transform: translateY(0px); }
     }
 
-    /* --- METRIC CARDS (CLEAN WHITE) --- */
+    /* --- GLASS CARDS --- */
     .metric-card {
-        background: #ffffff;
-        border: 1px solid #e5e7eb;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 12px;
         padding: 20px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        transition: transform 0.2s;
+        transition: all 0.3s;
     }
     .metric-card:hover {
-        border-color: #3b82f6; /* Blue border on hover */
+        border-color: #22d3ee;
+        box-shadow: 0 0 15px rgba(34, 211, 238, 0.1);
         transform: translateY(-2px);
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
     }
     
     /* --- STATUS BADGES --- */
-    .badge {
-        padding: 4px 12px;
-        border-radius: 20px;
-        font-size: 0.75rem;
-        font-weight: 800;
-        text-transform: uppercase;
-    }
-    .badge-critical { background: #fee2e2; color: #991b1b; border: 1px solid #f87171; }
-    .badge-warning { background: #ffedd5; color: #9a3412; border: 1px solid #fb923c; }
-    .badge-safe { background: #d1fae5; color: #065f46; border: 1px solid #34d399; }
+    .badge { padding: 4px 12px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+    .badge-critical { background: rgba(220, 38, 38, 0.3); color: #fca5a5; border: 1px solid #ef4444; box-shadow: 0 0 10px rgba(239, 68, 68, 0.2); }
+    .badge-warning { background: rgba(234, 88, 12, 0.3); color: #fdba74; border: 1px solid #f97316; }
+    .badge-safe { background: rgba(22, 163, 74, 0.3); color: #86efac; border: 1px solid #22c55e; }
 
-    /* --- SIMULATOR PANEL --- */
+    /* --- SIMULATOR --- */
     .sim-panel {
-        background: #ffffff;
-        border-left: 5px solid #2563eb;
-        padding: 25px;
-        border-radius: 0 12px 12px 0;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        background: #18181b;
+        border-left: 4px solid #22d3ee;
+        padding: 20px;
+        margin-top: 20px;
+        border-radius: 0 10px 10px 0;
+    }
+
+    /* OVERRIDE STREAMLIT METRICS */
+    div[data-testid="stMetric"] {
+        background-color: #18181b !important;
+        border: 1px solid #27272a !important;
+        color: #fff !important;
+    }
+    div[data-testid="stMetricLabel"] { color: #a1a1aa !important; }
+    div[data-testid="stMetricValue"] { color: #fff !important; }
+    
+    /* POSTER GRID */
+    .poster-container {
+        display: flex; 
+        gap: 10px; 
+        justify-content: center;
         margin-top: 20px;
     }
-
-    /* OVERRIDE STREAMLIT METRICS TO LOOK NICE ON WHITE */
-    div[data-testid="stMetric"] {
-        background-color: #ffffff !important;
-        border: 1px solid #e5e7eb !important;
-        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-        color: #111 !important;
+    .poster-img {
+        border-radius: 10px;
+        border: 2px solid #333;
+        transition: transform 0.3s;
     }
-    div[data-testid="stMetricLabel"] { color: #6b7280 !important; }
-    div[data-testid="stMetricValue"] { color: #111827 !important; }
-    
+    .poster-img:hover {
+        transform: scale(1.05);
+        border-color: #22d3ee;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -151,13 +155,13 @@ def load_all_data():
             
             if val > info["threshold"]:
                 status = "CRITICAL"
-                color = [220, 38, 38, 200] 
+                color = [220, 38, 38, 255] # Red
             elif val > info["threshold"] * 0.7:
                 status = "WARNING"
-                color = [234, 88, 12, 200]
+                color = [249, 115, 22, 255] # Orange
             else:
                 status = "NORMAL"
-                color = [22, 163, 74, 200]
+                color = [34, 197, 94, 255] # Green
                 
             data_list.append({
                 "name": name, "lat": info["lat"], "lon": info["lon"],
@@ -170,59 +174,63 @@ def load_all_data():
 
 dashboard_data = load_all_data()
 
-# --- 4. HEADER SECTION (UPDATED) ---
+# --- 4. HEADER SECTION ---
 st.markdown("""
 <div class="header-container">
     <div class="sub-header">MINISTRY OF HEALTH • SRI LANKA GOVERNMENT</div>
     <div class="main-title">
         <span class="mosquito-icon">🦟</span>
         AUTODENGUE.LK
+        <span class="mosquito-icon">🦟</span>
     </div>
-    <div style="color: #6b7280; margin-top: 10px; font-weight: 500;">National AI-Driven Epidemic Surveillance Unit</div>
+    <div style="color: #71717a; margin-top: 10px;">National AI-Driven Epidemic Surveillance Unit</div>
 </div>
 """, unsafe_allow_html=True)
 
-# --- 5. TOP LEVEL METRICS ---
+# --- 5. KPIs ---
 if dashboard_data:
     total_cases = sum(d['cases'] for d in dashboard_data)
     high_risk_count = sum(1 for d in dashboard_data if d['status'] == "CRITICAL")
 else:
-    total_cases = 0
-    high_risk_count = 0
+    total_cases = 0; high_risk_count = 0
 
 k1, k2, k3, k4 = st.columns(4)
-with k1: st.metric("National Forecast (30 Days)", f"{total_cases}", "Patients")
+with k1: st.metric("Forecast (30 Days)", f"{total_cases}", "Patients")
 with k2: st.metric("High Risk Zones", f"{high_risk_count}", "Districts", delta_color="inverse")
-with k3: st.metric("System Status", "ONLINE", "Updated Today")
-with k4: st.metric("AI Confidence", "89.2%", "High")
+with k3: st.metric("System Status", "ONLINE", "Latency: 24ms")
+with k4: st.metric("AI Confidence", "89.2%", "Ensemble")
 
 st.markdown("---")
 
-# --- 6. MAIN SURVEILLANCE AREA ---
+# --- 6. MAIN SURVEILLANCE MAP & STATUS ---
 col_map, col_details = st.columns([2, 1])
 
 with col_map:
     st.subheader("🗺️ Geospatial Risk Map")
     
+    # FIXED MAP CONFIGURATION
     layer = pdk.Layer(
         "ScatterplotLayer",
         data=pd.DataFrame(dashboard_data),
         get_position="[lon, lat]",
         get_color="color",
-        get_radius=8000,
+        get_radius=8000,          # Large radius to be visible
         pickable=True,
         stroked=True,
         filled=True,
         line_color=[255, 255, 255],
-        line_width_min_pixels=2
+        line_width_min_pixels=2,
+        opacity=0.8
     )
     
-    # Using a Light Map Style for consistency
+    # Dark Mode Map Style
+    view_state = pdk.ViewState(latitude=7.0, longitude=80.5, zoom=7.2, pitch=40)
+    
     st.pydeck_chart(pdk.Deck(
-        map_style="mapbox://styles/mapbox/light-v10", 
-        initial_view_state=pdk.ViewState(latitude=7.0, longitude=80.5, zoom=7.2),
+        map_style="mapbox://styles/mapbox/dark-v10", # Forces Dark Map
+        initial_view_state=view_state,
         layers=[layer],
-        tooltip={"html": "<div style='background: white; color: black; padding: 10px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.2);'><b>{name}</b><br>Status: {status}<br>Forecast: {cases}</div>"}
+        tooltip={"html": "<div style='background: #111; color: white; padding: 10px; border: 1px solid #333;'><b>{name}</b><br>Status: {status}<br>Forecast: {cases}</div>"}
     ))
 
 with col_details:
@@ -234,92 +242,41 @@ with col_details:
         st.markdown(f"""
         <div class="metric-card" style="margin-bottom: 15px; padding: 15px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                <span style="font-weight: 800; font-size: 1.1rem; color: #111;">{city['name']}</span>
+                <span style="font-weight: 700; font-size: 1.1rem;">{city['name']}</span>
                 <span class="badge {badge_class}">{city['status']}</span>
             </div>
-            <div style="font-size: 0.9rem; color: #4b5563;">
-                Predicted Patients: <span style="color: #111; font-weight: 800; font-size: 1.1rem;">{city['cases']}</span><br>
-                <span style="font-size: 0.8rem; color: #9ca3af;">Model: {city['model']} ({city['acc']})</span>
+            <div style="font-size: 0.9rem; color: #a1a1aa;">
+                Predicted: <span style="color: white; font-weight: 700;">{city['cases']}</span> Patients<br>
+                Model: {city['model']} ({city['acc']})
             </div>
         </div>
         """, unsafe_allow_html=True)
 
 # --- 7. DEEP DIVE SECTION ---
 st.markdown("---")
-st.subheader("🔍 Advanced District Analysis")
+st.subheader("🔍 Advanced Analytics")
 
 target_city_name = st.selectbox("Select District", list(DISTRICTS.keys()))
 target_config = DISTRICTS[target_city_name]
 
-# Prepare Chart Data
+# Load Data for Chart
 try:
     df_chart = pd.read_csv(target_config["file"])
     df_chart['date'] = pd.to_datetime(df_chart['date'])
-    
     cols_map = {}
     if 'dengue_cases' in df_chart.columns: cols_map['dengue_cases'] = 'Actual'
     if 'actual' in df_chart.columns: cols_map['actual'] = 'Actual'
     if 'predicted_cases' in df_chart.columns: cols_map['predicted_cases'] = 'Predicted'
     if 'predicted' in df_chart.columns: cols_map['predicted'] = 'Predicted'
-
     clean_chart = df_chart.rename(columns=cols_map).set_index('date')
-    # Integer Conversion
     if 'Actual' in clean_chart.columns: clean_chart['Actual'] = clean_chart['Actual'].fillna(0).astype(int)
     if 'Predicted' in clean_chart.columns: clean_chart['Predicted'] = clean_chart['Predicted'].fillna(0).astype(int)
 except:
-    st.error("Data file not found for selected district.")
     clean_chart = pd.DataFrame()
 
-# TABS
-tab_trend, tab_sim, tab_proto = st.tabs(["📈 Trend Chart", "🤖 Weather Simulator", "📢 Guidelines"])
+# TABS (Including New Posters Tab)
+tab_trend, tab_sim, tab_proto, tab_media = st.tabs(["📈 Trend Chart", "🤖 Weather Simulator", "📢 Guidelines", "🖼️ Awareness Posters"])
 
 with tab_trend:
-    st.markdown(f"**12-Month Disease Forecast: {target_city_name}**")
-    # Using Blue (Actual) and Red (Predicted) which looks good on white
-    st.line_chart(clean_chart[['Actual', 'Predicted']], color=["#2563eb", "#dc2626"])
-    st.caption("Blue Line: Historical Data | Red Line: AI Forecast")
-
-with tab_sim:
-    st.markdown(f"**Real-Time Weather Impact Analysis: {target_city_name}**")
-    st.markdown('<div class="sim-panel">', unsafe_allow_html=True)
-    
-    col_s1, col_s2, col_s3, col_s4 = st.columns(4)
-    with col_s1: rain = st.slider("Rainfall (mm)", 0, 500, 150)
-    with col_s2: temp = st.slider("Temperature (°C)", 20, 40, 29)
-    with col_s3: hum = st.slider("Humidity (%)", 40, 100, 75)
-    with col_s4: wind = st.slider("Wind (km/h)", 0, 50, 10)
-    
-    # Calc
-    base = int([d['cases'] for d in dashboard_data if d['name'] == target_city_name][0])
-    delta = int((rain-150)*0.4 + (temp-29)*5 + (hum-75)*2 - (wind-10)*1.5)
-    final = max(0, base + delta)
-    
-    st.markdown("---")
-    res_c1, res_c2 = st.columns([1, 3])
-    with res_c1:
-        st.metric("New Projection", f"{final}", delta=f"{delta} weather adjustment")
-    with res_c2:
-        if delta > 20:
-            st.warning("⚠️ High Risk Conditions: Heavy rain + humidity accelerates breeding.")
-        elif delta < -20:
-            st.success("✅ Low Risk Conditions: Dry or windy weather reduces mosquito activity.")
-        else:
-            st.info("ℹ️ Neutral Conditions: Weather impact is within normal ranges.")
-    st.markdown('</div>', unsafe_allow_html=True)
-
-with tab_proto:
-    c_p1, c_p2 = st.columns(2)
-    with c_p1:
-        st.markdown("""
-        #### 👮 FOR PHI OFFICERS
-        1. **Deployment:** Target high-density zones in **{target_city_name}**.
-        2. **Inspect:** Construction sites (slab tops) and schools.
-        3. **Enforce:** Issue 3-day warnings before fining.
-        """)
-    with c_p2:
-        st.markdown("""
-        #### 🏡 FOR GENERAL PUBLIC
-        1. **Check:** 10 minutes every Sunday (Gutters/Pots).
-        2. **Clean:** Remove all standing water immediately.
-        3. **Protect:** Use repellent (Dawn & Dusk).
-        """)
+    st.markdown(f"**12-Month Trajectory: {target_city_name}**")
+    st.line
