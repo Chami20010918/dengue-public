@@ -105,23 +105,6 @@ st.markdown("""
     }
     div[data-testid="stMetricLabel"] { color: #a1a1aa !important; }
     div[data-testid="stMetricValue"] { color: #fff !important; }
-    
-    /* POSTER GRID */
-    .poster-container {
-        display: flex; 
-        gap: 10px; 
-        justify-content: center;
-        margin-top: 20px;
-    }
-    .poster-img {
-        border-radius: 10px;
-        border: 2px solid #333;
-        transition: transform 0.3s;
-    }
-    .poster-img:hover {
-        transform: scale(1.05);
-        border-color: #22d3ee;
-    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -150,9 +133,12 @@ def load_all_data():
     for name, info in DISTRICTS.items():
         try:
             df = pd.read_csv(info["file"])
+            # Normalize Columns
             pred_col = 'predicted_cases' if 'predicted_cases' in df.columns else 'predicted'
+            # Convert to INT
             val = int(round(df.iloc[-1][pred_col]))
             
+            # Status Logic
             if val > info["threshold"]:
                 status = "CRITICAL"
                 color = [220, 38, 38, 255] # Red
@@ -181,7 +167,6 @@ st.markdown("""
     <div class="main-title">
         <span class="mosquito-icon">🦟</span>
         AUTODENGUE.LK
-        <span class="mosquito-icon">🦟</span>
     </div>
     <div style="color: #71717a; margin-top: 10px;">National AI-Driven Epidemic Surveillance Unit</div>
 </div>
@@ -208,13 +193,13 @@ col_map, col_details = st.columns([2, 1])
 with col_map:
     st.subheader("🗺️ Geospatial Risk Map")
     
-    # FIXED MAP CONFIGURATION
+    # FIXED MAP CONFIGURATION (No API Key Required)
     layer = pdk.Layer(
         "ScatterplotLayer",
         data=pd.DataFrame(dashboard_data),
         get_position="[lon, lat]",
         get_color="color",
-        get_radius=8000,          # Large radius to be visible
+        get_radius=8000,
         pickable=True,
         stroked=True,
         filled=True,
@@ -223,11 +208,12 @@ with col_map:
         opacity=0.8
     )
     
-    # Dark Mode Map Style
+    # Center map on Sri Lanka
     view_state = pdk.ViewState(latitude=7.0, longitude=80.5, zoom=7.2, pitch=40)
     
+    # map_style=None prevents API key errors and usually defaults to a dark style in dark mode
     st.pydeck_chart(pdk.Deck(
-        map_style="mapbox://styles/mapbox/dark-v10", # Forces Dark Map
+        map_style=None, 
         initial_view_state=view_state,
         layers=[layer],
         tooltip={"html": "<div style='background: #111; color: white; padding: 10px; border: 1px solid #333;'><b>{name}</b><br>Status: {status}<br>Forecast: {cases}</div>"}
@@ -274,9 +260,45 @@ try:
 except:
     clean_chart = pd.DataFrame()
 
-# TABS (Including New Posters Tab)
-tab_trend, tab_sim, tab_proto, tab_media = st.tabs(["📈 Trend Chart", "🤖 Weather Simulator", "📢 Guidelines", "🖼️ Awareness Posters"])
+# TABS (Removed Posters Tab)
+tab_trend, tab_sim, tab_proto = st.tabs(["📈 Trend Chart", "🤖 Weather Simulator", "📢 Guidelines"])
 
 with tab_trend:
     st.markdown(f"**12-Month Trajectory: {target_city_name}**")
-    st.line
+    # Corrected Line Chart
+    st.line_chart(clean_chart[['Actual', 'Predicted']], color=["#22d3ee", "#ef4444"])
+    st.caption("Cyan: Historical Data | Red: AI Forecast")
+
+with tab_sim:
+    st.markdown(f"**Real-Time Weather Impact: {target_city_name}**")
+    st.markdown('<div class="sim-panel">', unsafe_allow_html=True)
+    c1, c2, c3, c4 = st.columns(4)
+    with c1: rain = st.slider("Rainfall (mm)", 0, 500, 150)
+    with c2: temp = st.slider("Temp (°C)", 20, 40, 29)
+    with c3: hum = st.slider("Humidity (%)", 40, 100, 75)
+    with c4: wind = st.slider("Wind (km/h)", 0, 50, 10)
+    
+    base = int([d['cases'] for d in dashboard_data if d['name'] == target_city_name][0])
+    delta = int((rain-150)*0.4 + (temp-29)*5 + (hum-75)*2 - (wind-10)*1.5)
+    final = max(0, base + delta)
+    
+    st.markdown("---")
+    res1, res2 = st.columns([1, 3])
+    with res1: st.metric("New Projection", f"{final}", delta=f"{delta}")
+    with res2: 
+        if delta > 20: st.warning("High Risk: Wet & Humid conditions detected.")
+        else: st.info("Normal: Weather impact is minimal.")
+    st.markdown('</div>', unsafe_allow_html=True)
+
+with tab_proto:
+    c_p1, c_p2 = st.columns(2)
+    with c_p1:
+        st.info("👮 **PHI INSTRUCTIONS**")
+        st.markdown("1. **Target:** High-density zones.")
+        st.markdown("2. **Inspect:** Construction sites.")
+        st.markdown("3. **Action:** 3-Day Warning -> Fine.")
+    with c_p2:
+        st.success("🏡 **PUBLIC ADVISORY**")
+        st.markdown("1. **Sunday Routine:** 10-min clean up.")
+        st.markdown("2. **Remove:** Standing water.")
+        st.markdown("3. **Protect:** Use repellent.")
