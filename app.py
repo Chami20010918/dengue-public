@@ -1,4 +1,4 @@
-﻿import streamlit as st
+import streamlit as st
 import pandas as pd
 import numpy as np
 import pydeck as pdk
@@ -11,7 +11,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- 2. CUSTOM DESIGN (OFFICIAL THEME + MOSQUITO ICON) ---
+# --- 2. CUSTOM DESIGN (OFFICIAL THEME + NEW ALERT CARDS) ---
 st.markdown("""
     <style>
     /* Main Background */
@@ -19,7 +19,8 @@ st.markdown("""
         background-color: #0e1117;
         color: #ffffff;
     }
-    /* Official Header Styles */
+    
+    /* --- HEADER STYLES --- */
     .ministry-header {
         text-align: center;
         color: #9ca3af;
@@ -31,7 +32,7 @@ st.markdown("""
     }
     .board-header {
         text-align: center;
-        color: #60a5fa; /* Light Blue */
+        color: #60a5fa;
         font-size: 2.5rem;
         font-weight: 800;
         margin-top: 0;
@@ -40,7 +41,6 @@ st.markdown("""
         border-bottom: 2px solid #374151;
         padding-bottom: 20px;
     }
-    /* SYSTEM NAME WITH MOSQUITO ICON */
     .system-name {
         text-align: center;
         font-size: 4rem;
@@ -52,9 +52,8 @@ st.markdown("""
         display: flex;
         justify-content: center;
         align-items: center;
-        gap: 15px; /* Space between icon and text */
+        gap: 15px;
     }
-    /* MOSQUITO ICON ANIMATION */
     .mosquito-icon {
         font-size: 4rem;
         animation: float 3s ease-in-out infinite;
@@ -64,11 +63,42 @@ st.markdown("""
         50% { transform: translateY(-10px); }
         100% { transform: translateY(0px); }
     }
-    
-    /* Centered Selectbox */
-    div[data-testid="stSelectbox"] {
-        text-align: center;
+
+    /* --- NEW STATUS CARD STYLES --- */
+    .status-card {
+        padding: 20px;
+        border-radius: 15px;
+        margin-top: 20px;
+        color: white;
+        border-left: 10px solid;
     }
+    .status-critical {
+        background: linear-gradient(90deg, #450a0a, #1a0505);
+        border-color: #ef4444; /* Red Border */
+        box-shadow: 0 0 20px rgba(239, 68, 68, 0.2);
+    }
+    .status-warning {
+        background: linear-gradient(90deg, #451a03, #1a0a02);
+        border-color: #f59e0b; /* Orange Border */
+    }
+    .status-safe {
+        background: linear-gradient(90deg, #064e3b, #022c22);
+        border-color: #10b981; /* Green Border */
+    }
+    .status-title {
+        font-size: 1.8rem;
+        font-weight: bold;
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .status-text {
+        font-size: 1.1rem;
+        line-height: 1.6;
+        color: #e5e7eb;
+    }
+    
     /* KPI Cards */
     div[data-testid="stMetric"] {
         background-color: #1f2937;
@@ -77,24 +107,30 @@ st.markdown("""
         text-align: center;
         padding: 10px;
     }
+    div[data-testid="stSelectbox"] {
+        text-align: center;
+    }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. SYSTEM CONFIGURATION ---
-# UPDATED: ALL FILENAMES NOW MATCH "FINAL_DASHBOARD_..."
+# --- 3. SYSTEM CONFIGURATION (CHANGE THRESHOLDS HERE!) ---
 DISTRICTS = {
     "Colombo": {
         "lat": 6.9271, "lon": 79.8612,
         "best_model_name": "Hybrid Ensemble (XGBoost + LSTM)",
         "accuracy": "72.4%",  
-        "file_data": "FINAL_DASHBOARD_colombo.csv",  # <--- FIXED THIS LINE
-        "risk_threshold": 2000
+        "file_data": "FINAL_DASHBOARD_colombo.csv", 
+        
+        # --- CHANGE THIS NUMBER TO ADJUST ALERT LEVEL ---
+        "risk_threshold": 2000 
     },
     "Katugastota": {
         "lat": 7.3256, "lon": 80.6211,
         "best_model_name": "XGBoost (Machine Learning)",
         "accuracy": "84.9%",  
         "file_data": "FINAL_DASHBOARD_katugastota.csv",
+        
+        # --- CHANGE THIS NUMBER TO ADJUST ALERT LEVEL ---
         "risk_threshold": 300
     },
     "Ratnapura": {
@@ -102,6 +138,8 @@ DISTRICTS = {
         "best_model_name": "Gradient Boosting (Log-Transform)",
         "accuracy": "61.3%", 
         "file_data": "FINAL_DASHBOARD_ratnapura.csv",
+        
+        # --- CHANGE THIS NUMBER TO ADJUST ALERT LEVEL ---
         "risk_threshold": 400
     }
 }
@@ -129,12 +167,9 @@ config = DISTRICTS[selected_district]
 
 # --- LOAD DATA ---
 try:
-    # Load directly (assumes file is next to app.py)
     df = pd.read_csv(config["file_data"])
     df['date'] = pd.to_datetime(df['date'])
     
-    # Get Last Known Data
-    # Auto-detect column names based on different exports
     if 'predicted_cases' in df.columns:
         pred_col = 'predicted_cases'
         act_col = 'actual' if 'actual' in df.columns else 'dengue_cases'
@@ -143,9 +178,7 @@ try:
         act_col = 'actual'
 
     last_pred = df[pred_col].iloc[-1]
-    last_date = df['date'].iloc[-1]
     
-    # Handle NaNs in actuals for future dates
     valid_actuals = df[act_col].dropna()
     if not valid_actuals.empty:
         last_actual = valid_actuals.iloc[-1]
@@ -154,14 +187,20 @@ try:
 
     # Determine Risk
     if last_pred > config["risk_threshold"]:
-        risk_color = "#ef4444" 
-        risk_msg = "CRITICAL RISK"
+        risk_class = "status-critical"
+        risk_icon = "🔴"
+        risk_title = "CRITICAL OUTBREAK DETECTED"
+        risk_msg = "CRITICAL" # For Map Logic
     elif last_pred > config["risk_threshold"] * 0.7:
-        risk_color = "#f59e0b" 
-        risk_msg = "WARNING LEVEL"
+        risk_class = "status-warning"
+        risk_icon = "🟠"
+        risk_title = "ELEVATED RISK LEVEL"
+        risk_msg = "WARNING"
     else:
-        risk_color = "#10b981" 
-        risk_msg = "NORMAL ACTIVITY"
+        risk_class = "status-safe"
+        risk_icon = "🟢"
+        risk_title = "NORMAL SURVEILLANCE"
+        risk_msg = "SAFE"
 
 except Exception as e:
     st.error(f"⚠️ ERROR: Could not find file '{config['file_data']}'. Please make sure the CSV file is in the same folder as this script!")
@@ -181,9 +220,11 @@ with k3:
     st.metric("FORECAST (NEXT MONTH)", f"{int(last_pred)} Cases", delta=f"{int(last_pred - last_actual)} vs Last")
 
 with k4:
+    # Small Badge for KPI
+    badge_color = "#ef4444" if risk_msg == "CRITICAL" else "#f59e0b" if risk_msg == "WARNING" else "#10b981"
     st.markdown(f"""
-    <div style="text-align: center; border: 2px solid {risk_color}; color: {risk_color}; padding: 10px; border-radius: 10px; font-weight: bold; margin-top: 0px;">
-        {risk_msg}
+    <div style="text-align: center; border: 2px solid {badge_color}; color: {badge_color}; padding: 10px; border-radius: 10px; font-weight: bold;">
+        {risk_title.split(' ')[0]} STATUS
     </div>
     """, unsafe_allow_html=True)
 
@@ -193,7 +234,6 @@ g_col, m_col = st.columns([2, 1])
 
 with g_col:
     st.subheader(f"📈 {selected_district} Outbreak Trend")
-    # Clean data for chart
     chart_df = df.set_index('date')[[act_col, pred_col]]
     st.line_chart(chart_df, color=["#00FFFF", "#FF0055"])
     st.caption("Cyan = Actual Data | Red = AI Prediction")
@@ -201,9 +241,7 @@ with g_col:
 with m_col:
     st.subheader("🗺️ Risk Zone")
     map_df = pd.DataFrame([{"lat": config["lat"], "lon": config["lon"]}])
-    
-    # Color logic
-    r, g, b = (239, 68, 68) if "CRITICAL" in risk_msg else ((245, 158, 11) if "WARNING" in risk_msg else (16, 185, 129))
+    r, g, b = (239, 68, 68) if risk_msg == "CRITICAL" else ((245, 158, 11) if risk_msg == "WARNING" else (16, 185, 129))
     
     st.pydeck_chart(pdk.Deck(
         map_style=None,
@@ -226,7 +264,6 @@ st.divider()
 st.markdown("<h2 style='text-align: center;'>🦟 REAL-TIME WEATHER SIMULATOR</h2>", unsafe_allow_html=True)
 st.markdown("<p style='text-align: center; color: #9ca3af;'>Adjust parameters to see AI prediction response</p>", unsafe_allow_html=True)
 
-# Layout: Spacer | Controls | Spacer
 s_left, s_mid, s_right = st.columns([1, 2, 1])
 
 with s_mid:
@@ -236,10 +273,9 @@ with s_mid:
     humidity = st.slider("💧 Humidity (%)", 50, 100, 80)
     wind = st.slider("🌬️ Wind Speed (km/h)", 0, 50, 10)
 
-    # Simulation Logic
     base = last_pred
     r_factor = (rain - 200) * 0.5
-    t_factor = (10 - abs(temp - 29)) * 5.0 # Sweet spot at 29
+    t_factor = (10 - abs(temp - 29)) * 5.0
     h_factor = (humidity - 75) * 2.0
     
     sim_result = base + r_factor + t_factor + h_factor
@@ -249,11 +285,39 @@ with s_mid:
     st.markdown(f"<h3 style='text-align: center;'>AI PREDICTED OUTCOME</h3>", unsafe_allow_html=True)
     st.markdown(f"<h1 style='text-align: center; color: #FFD700; font-size: 4rem;'>{int(sim_result)} Cases</h1>", unsafe_allow_html=True)
 
-# --- 9. PROTOCOLS ---
+# --- 9. NEW & IMPROVED ALERTS ---
 st.divider()
-if "CRITICAL" in risk_msg:
-    st.error("🔴 RED PROTOCOL: IMMEDIATE FOGGING & CLINICAL SURGE CAPACITY REQUIRED.")
-elif "WARNING" in risk_msg:
-    st.warning("🟠 AMBER PROTOCOL: COMMUNITY CLEANING & LARVAL SURVEYS REQUIRED.")
+
+# Defining the specific advice text
+if risk_msg == "CRITICAL":
+    action_text = """
+    <b>⚠️ URGENT ACTION REQUIRED:</b><br>
+    The AI model forecasts a significant surge in cases. <br><br>
+    1. <b>MOH Offices:</b> Immediate fogging in high-density clusters.<br>
+    2. <b>Hospitals:</b> Prepare DHF (Dengue Hemorrhagic Fever) wards.<br>
+    3. <b>Public:</b> Mandatory cleaning of premises. Legal action for breeding sites.
+    """
+elif risk_msg == "WARNING":
+    action_text = """
+    <b>⚠️ PRECAUTIONARY PHASE:</b><br>
+    Cases are rising above the safety baseline.<br><br>
+    1. <b>Community:</b> Organize 'Shramadana' cleaning campaigns.<br>
+    2. <b>Schools:</b> Inspect water tanks and gutters this week.<br>
+    3. <b>Personal:</b> Use mosquito repellents during peak hours (Dawn/Dusk).
+    """
 else:
-    st.success("🟢 GREEN PROTOCOL: ROUTINE SURVEILLANCE ACTIVE.")
+    action_text = """
+    <b>✅ SURVEILLANCE ACTIVE:</b><br>
+    Cases are within manageable limits.<br><br>
+    1. <b>Routine:</b> Continue weekly premises inspections.<br>
+    2. <b>Monitor:</b> Watch for sudden weather changes in the simulator above.<br>
+    3. <b>Data:</b> System will update automatically next week.
+    """
+
+# Render the Beautiful Custom Card
+st.markdown(f"""
+<div class="status-card {risk_class}">
+    <div class="status-title">{risk_icon} {risk_title}</div>
+    <div class="status-text">{action_text}</div>
+</div>
+""", unsafe_allow_html=True)
