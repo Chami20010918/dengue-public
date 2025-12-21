@@ -10,18 +10,41 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- 2. CUSTOM DESIGN ---
+# --- 2. ADVANCED UI STYLING (Glassmorphism) ---
 st.markdown("""
     <style>
-    .stApp { background-color: #0e1117; color: #ffffff; }
-    .ministry-header { text-align: center; color: #9ca3af; font-size: 1.2rem; letter-spacing: 2px; }
-    .board-header { text-align: center; color: #60a5fa; font-size: 2.5rem; font-weight: 800; }
-    /* Metric Cards */
-    div[data-testid="stMetric"] { background-color: #1f2937; border: 1px solid #374151; border-radius: 8px; text-align: center; }
+    /* Main Background */
+    .stApp {
+        background-color: #0e1117;
+        color: #ffffff;
+    }
+    
+    /* Modern Cards */
+    .css-card {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 15px;
+        padding: 20px;
+        backdrop-filter: blur(10px);
+        margin-bottom: 20px;
+    }
+    
+    /* Headers */
+    .ministry-header { 
+        text-align: center; color: #9ca3af; font-size: 1.1rem; letter-spacing: 3px; font-weight: 600; text-transform: uppercase;
+    }
+    .board-header { 
+        text-align: center; color: #60a5fa; font-size: 2.2rem; font-weight: 800; margin-top: -10px; text-transform: uppercase;
+    }
+    
+    /* Metric styling to remove decimals */
+    div[data-testid="stMetricValue"] {
+        font-family: 'Courier New', monospace;
+    }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. CONFIGURATION (ACCURACY & MODEL NAMES ADDED HERE) ---
+# --- 3. CONFIGURATION ---
 DISTRICTS = {
     "Colombo": {
         "lat": 6.9271, "lon": 79.8612, 
@@ -47,23 +70,22 @@ DISTRICTS = {
 }
 
 # --- 4. HEADER ---
-st.markdown("<div class='ministry-header'>MINISTRY OF HEALTH - SRI LANKA</div>", unsafe_allow_html=True)
-st.markdown("<div class='board-header'>NATIONAL DENGUE CONTROL UNIT</div>", unsafe_allow_html=True)
-st.markdown("<h1 style='text-align: center;'>🦟 AUTODENGUE.LK</h1>", unsafe_allow_html=True)
+st.markdown("<div class='ministry-header'>MINISTRY OF HEALTH - SRI LANKA GOVERNMENT</div>", unsafe_allow_html=True)
+st.markdown("<div class='board-header'>DENGUE SURVEILLANCE BOARD</div>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center; margin-bottom: 40px;'>🦟 AUTODENGUE.LK</h1>", unsafe_allow_html=True)
 
-# --- 5. NATIONAL MAP (ALL DISTRICTS) ---
-st.divider()
+# --- 5. DATA LOADING & MAP PREP ---
 map_data = []
 
-# Load data for map
 for name, info in DISTRICTS.items():
     try:
         df = pd.read_csv(info["file"])
-        # Find the correct column for prediction
         pred_col = 'predicted_cases' if 'predicted_cases' in df.columns else 'predicted'
-        last_pred = df.iloc[-1][pred_col]
         
-        # Color Logic
+        # FORCE INTEGER (No Decimals)
+        last_pred = int(round(df.iloc[-1][pred_col]))
+        
+        # Status Logic
         if last_pred > info["threshold"]:
             color = [239, 68, 68] # Red
             status = "High"
@@ -76,14 +98,18 @@ for name, info in DISTRICTS.items():
             
         map_data.append({
             "name": name, "lat": info["lat"], "lon": info["lon"],
-            "cases": int(last_pred), "color": color, "status": status
+            "cases": last_pred, "color": color, "status": status
         })
     except:
         continue
 
-c1, c2 = st.columns([3, 1])
-with c1:
+# --- 6. TOP SECTION: MAP & STATUS ---
+col_map, col_stat = st.columns([3, 1])
+
+with col_map:
+    st.markdown('<div class="css-card">', unsafe_allow_html=True)
     st.subheader("🗺️ National Live Risk Map")
+    
     layer = pdk.Layer(
         "ScatterplotLayer",
         data=pd.DataFrame(map_data),
@@ -93,82 +119,120 @@ with c1:
         pickable=True,
         stroked=True,
         filled=True,
-        line_color=[255, 255, 255]
+        line_color=[255, 255, 255],
+        line_width_min_pixels=2
     )
-    tooltip = {"html": "<b>{name}</b><br/>Status: {status}<br/>Forecast: {cases} Cases"}
+    
+    # Tooltip matches the clean look
+    tooltip = {"html": "<b>{name}</b><br/>Risk: {status}<br/>Forecast: {cases} Patients"}
+    
     st.pydeck_chart(pdk.Deck(
         map_style=None,
         initial_view_state=pdk.ViewState(latitude=7.0, longitude=80.5, zoom=7.5),
         layers=[layer],
         tooltip=tooltip
     ))
+    st.markdown('</div>', unsafe_allow_html=True)
 
-with c2:
-    st.subheader("📊 District Status")
-    for district in map_data:
-        emoji = "🔴" if district["status"] == "High" else "🟠" if district["status"] == "Moderate" else "🟢"
-        st.metric(f"{emoji} {district['name']}", f"{district['cases']} Cases", district['status'])
+with col_stat:
+    st.markdown('<div class="css-card">', unsafe_allow_html=True)
+    st.subheader("📊 Live Status")
+    for d in map_data:
+        icon = "🔴" if d["status"] == "High" else "🟠" if d["status"] == "Moderate" else "🟢"
+        st.metric(f"{icon} {d['name']}", f"{d['cases']}", "Patients")
+    st.markdown('</div>', unsafe_allow_html=True)
 
-# --- 6. DRILL DOWN & MODEL INFO ---
+# --- 7. CITY DRILL DOWN ---
 st.divider()
-st.subheader("🔍 Detailed District Analysis")
-
-# Select District
-selected = st.selectbox("Select Region to Analyze", list(DISTRICTS.keys()))
+st.subheader("🔍 Regional Deep Dive")
+selected = st.selectbox("Select District for Analysis", list(DISTRICTS.keys()))
 config = DISTRICTS[selected]
 
-# SHOW MODEL NAME AND ACCURACY HERE
+# Model Info Cards
 m1, m2, m3 = st.columns(3)
-with m1:
-    st.metric("🧠 Model Architecture", config["model"], delta="Active")
-with m2:
-    st.metric("✅ Model Accuracy", config["accuracy"], delta="Verified")
-with m3:
-    st.metric("📉 Risk Threshold", f"{config['threshold']} Cases")
+with m1: st.info(f"**Model:** {config['model']}")
+with m2: st.success(f"**Accuracy:** {config['accuracy']}")
+with m3: st.warning(f"**Alert Limit:** {config['threshold']} Patients")
 
-# --- 7. GRAPH FIX (CYAN & RED LINES) ---
-st.subheader(f"📈 Outbreak Trend: {selected}")
+# --- 8. THE CHART (WHOLE NUMBERS & BOTH LINES) ---
+st.markdown('<div class="css-card">', unsafe_allow_html=True)
+st.subheader(f"📈 12-Month Trend: {selected}")
 
-# Load & Clean Data
+# Load & Clean
 df_sel = pd.read_csv(config["file"])
 df_sel['date'] = pd.to_datetime(df_sel['date'])
 
-# Normalize Column Names (Fixes the missing line issue)
-# We rename whatever columns we have to 'Actual' and 'Predicted'
+# Rename cols for the Legend
 cols_map = {}
 if 'dengue_cases' in df_sel.columns: cols_map['dengue_cases'] = 'Actual'
 if 'actual' in df_sel.columns: cols_map['actual'] = 'Actual'
 if 'predicted_cases' in df_sel.columns: cols_map['predicted_cases'] = 'Predicted'
 if 'predicted' in df_sel.columns: cols_map['predicted'] = 'Predicted'
 
-df_chart = df_sel.rename(columns=cols_map)
-df_chart = df_chart.set_index('date')
+df_chart = df_sel.rename(columns=cols_map).set_index('date')
 
-# Plot only Actual and Predicted
+# Ensure Integers
+if 'Actual' in df_chart.columns: df_chart['Actual'] = df_chart['Actual'].fillna(0).astype(int)
+if 'Predicted' in df_chart.columns: df_chart['Predicted'] = df_chart['Predicted'].fillna(0).astype(int)
+
+# Plot
 st.line_chart(df_chart[['Actual', 'Predicted']], color=["#00FFFF", "#FF0055"])
-st.caption("Cyan Line = Actual Cases (History) | Red Line = AI Prediction (Forecast)")
+st.caption("Cyan = Actual History | Red = AI Prediction")
+st.markdown('</div>', unsafe_allow_html=True)
 
-# --- 8. REAL-TIME PREDICTOR ---
+# --- 9. REAL-TIME PREDICTOR (4 PARAMETERS) ---
 st.divider()
-st.subheader(f"🤖 Real-Time Predictor for {selected}")
-st.info(f"Adjust weather sliders below to simulate a scenario specifically for **{selected}**.")
+st.markdown(f"<h2 style='text-align: center;'>🤖 AI Simulator: {selected}</h2>", unsafe_allow_html=True)
+st.info("Adjust the 4 weather parameters below to see how the case count changes.")
 
-rain = st.slider("Rainfall (mm)", 0, 500, 100)
-temp = st.slider("Temperature (°C)", 20, 40, 30)
-
-# Simple Simulation Logic
-base_cases = int(map_data[0]['cases']) # Just as a baseline example
-impact = int((rain * 0.8) + ((temp - 28) * 10))
-simulated_total = base_cases + impact
-
+st.markdown('<div class="css-card">', unsafe_allow_html=True)
 c_sim1, c_sim2 = st.columns(2)
-with c_sim1:
-    st.metric("Weather Impact", f"{impact:+} Cases", "Due to Rain/Temp")
-with c_sim2:
-    st.metric("Total Simulated Cases", f"{simulated_total}", "If weather persists")
 
-# --- 9. GUIDELINES ---
+with c_sim1:
+    rain = st.slider("🌧️ Rainfall (mm)", 0, 500, 150)
+    temp = st.slider("🌡️ Temperature (°C)", 20, 40, 30)
+
+with c_sim2:
+    hum = st.slider("💧 Humidity (%)", 50, 100, 80)
+    wind = st.slider("🌬️ Wind Speed (km/h)", 0, 50, 10)
+
+# --- SIMULATION MATH (INTEGER LOGIC) ---
+# 1. Get Baseline
+base_cases = int(map_data[0]['cases']) # Baseline from current prediction
+
+# 2. Calculate Coefficients (Simplified for UI)
+rain_effect = (rain - 100) * 0.5    # More rain = more cases
+temp_effect = (temp - 28) * 5       # Heat accelerates breeding
+hum_effect = (hum - 75) * 2         # Humidity helps survival
+wind_effect = (wind - 10) * -2      # Wind blows them away
+
+total_change = int(rain_effect + temp_effect + hum_effect + wind_effect)
+final_prediction = int(base_cases + total_change)
+
+if final_prediction < 0: final_prediction = 0
+
+# --- DISPLAY RESULT ---
+st.markdown("---")
+r1, r2, r3 = st.columns([1, 2, 1])
+with r2:
+    st.markdown(f"<h1 style='text-align: center; color: #FFD700; font-size: 5rem;'>{final_prediction}</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; font-size: 1.2rem;'>Predicted Patients</p>", unsafe_allow_html=True)
+    
+    if total_change > 0:
+        st.caption(f"⚠️ Weather conditions are adding approx. {total_change} extra cases.")
+    else:
+        st.caption(f"✅ Weather conditions are reducing approx. {abs(total_change)} cases.")
+st.markdown('</div>', unsafe_allow_html=True)
+
+# --- 10. GUIDELINES ---
 st.divider()
-st.subheader("📋 Operational Guidelines")
-st.success("For PHIs: Target high-density areas. Give warnings before fines.")
-st.info("For Public: Check gutters and pots every Sunday for 10 minutes.")
+st.subheader("📋 Official Protocols")
+g1, g2 = st.columns(2)
+with g1:
+    st.error("**👮 For PHIs (Public Health Inspectors)**")
+    st.markdown("- Focus on construction sites & schools.")
+    st.markdown("- Issue warnings before fines (3-day grace period).")
+with g2:
+    st.success("**🏡 For General Public**")
+    st.markdown("- **10-Minute Sunday:** Check gutters & pots.")
+    st.markdown("- **Protection:** Use repellent at dawn & dusk.")
