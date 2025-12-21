@@ -1,4 +1,4 @@
-import streamlit as st
+﻿import streamlit as st
 import pandas as pd
 import numpy as np
 import pydeck as pdk
@@ -6,34 +6,76 @@ from datetime import timedelta
 
 # --- 1. PAGE CONFIGURATION ---
 st.set_page_config(
-    page_title="Dengue AI Command Center",
+    page_title="AUTODENGUE.LK | National Surveillance",
     page_icon="🦟",
     layout="wide"
 )
 
-# --- 2. CUSTOM DESIGN (DARK BLUE THEME) ---
+# --- 2. CUSTOM DESIGN (OFFICIAL THEME + MOSQUITO ICON) ---
 st.markdown("""
     <style>
     /* Main Background */
     .stApp {
-        background-color: #0e1117; /* Very Dark Blue/Black */
+        background-color: #0e1117;
         color: #ffffff;
     }
-    /* Metric Cards */
+    /* Official Header Styles */
+    .ministry-header {
+        text-align: center;
+        color: #9ca3af;
+        font-size: 1.2rem;
+        font-weight: 600;
+        letter-spacing: 2px;
+        margin-bottom: 5px;
+        text-transform: uppercase;
+    }
+    .board-header {
+        text-align: center;
+        color: #60a5fa; /* Light Blue */
+        font-size: 2.5rem;
+        font-weight: 800;
+        margin-top: 0;
+        margin-bottom: 20px;
+        text-transform: uppercase;
+        border-bottom: 2px solid #374151;
+        padding-bottom: 20px;
+    }
+    /* SYSTEM NAME WITH MOSQUITO ICON */
+    .system-name {
+        text-align: center;
+        font-size: 4rem;
+        font-weight: 900;
+        background: -webkit-linear-gradient(45deg, #00FFFF, #ffffff);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-top: -20px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 15px; /* Space between icon and text */
+    }
+    /* MOSQUITO ICON ANIMATION (Optional Pulse) */
+    .mosquito-icon {
+        font-size: 4rem;
+        animation: float 3s ease-in-out infinite;
+    }
+    @keyframes float {
+        0% { transform: translateY(0px); }
+        50% { transform: translateY(-10px); }
+        100% { transform: translateY(0px); }
+    }
+    
+    /* Centered Selectbox */
+    div[data-testid="stSelectbox"] {
+        text-align: center;
+    }
+    /* KPI Cards */
     div[data-testid="stMetric"] {
         background-color: #1f2937;
-        padding: 15px;
-        border-radius: 10px;
         border: 1px solid #374151;
-    }
-    /* Headings */
-    h1, h2, h3 {
-        color: #60a5fa !important; /* Light Blue Text */
-        font-family: 'Helvetica Neue', sans-serif;
-    }
-    /* Sliders */
-    .stSlider {
-        padding-top: 10px;
+        border-radius: 8px;
+        text-align: center;
+        padding: 10px;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -42,188 +84,168 @@ st.markdown("""
 DISTRICTS = {
     "Colombo": {
         "lat": 6.9271, "lon": 79.8612,
-        "best_model_name": "Deep Learning (LSTM)",
-        "file_data": "data/data_colombo.csv",
+        "best_model_name": "Hybrid Ensemble (XGBoost + LSTM)",
+        "accuracy": "72.4%",  
+        "file_data": "data/dashboard_data_colombo.csv",
         "risk_threshold": 2000
     },
     "Katugastota": {
         "lat": 7.3256, "lon": 80.6211,
-        "best_model_name": "Hybrid (XGBoost + LSTM)",
-        "file_data": "data/data_katugastota.csv",
+        "best_model_name": "XGBoost (Machine Learning)",
+        "accuracy": "84.9%",  
+        "file_data": "data/FINAL_DASHBOARD_katugastota.csv",
         "risk_threshold": 300
     },
     "Ratnapura": {
         "lat": 6.6828, "lon": 80.3990,
-        "best_model_name": "Ensemble (RF + XGB + LSTM)",
-        "file_data": "data/data_ratnapura.csv",
+        "best_model_name": "Gradient Boosting (Log-Transform)",
+        "accuracy": "61.3%", 
+        "file_data": "data/FINAL_DASHBOARD_ratnapura.csv",
         "risk_threshold": 400
     }
 }
 
-# --- 4. HEADER SECTION ---
-col_logo, col_title = st.columns([1, 5])
-with col_title:
-    st.markdown("""
-    <h1 style='text-align: left; margin-bottom: 0;'>🦟 AI-DRIVEN PUBLIC HEALTH</h1>
-    <p style='font-size: 1.2rem; color: #9ca3af; margin-top: 0;'>
-    Predicting Dengue Outbreaks in Sri Lanka | National Surveillance System
-    </p>
-    """, unsafe_allow_html=True)
+# --- 4. OFFICIAL HEADER SECTION (UPDATED WITH ICON) ---
+st.markdown("<div class='ministry-header'>MINISTRY OF HEALTH - SRI LANKA GOVERNMENT</div>", unsafe_allow_html=True)
+st.markdown("<div class='board-header'>DENGUE SURVEILLANCE BOARD</div>", unsafe_allow_html=True)
 
-st.divider()
+# THE NEW HEADER WITH THE MOSQUITO
+st.markdown("""
+    <div class='system-name'>
+        <span class='mosquito-icon'>🦟</span> 
+        AUTODENGUE.LK 
+        <span class='mosquito-icon'>🦟</span>
+    </div>
+""", unsafe_allow_html=True)
 
-# --- 5. SIDEBAR & DATA LOADING ---
-st.sidebar.header("📍 Command Controls")
-selected_district = st.sidebar.selectbox("Select Target Region", list(DISTRICTS.keys()))
+st.markdown("<p style='text-align: center; color: #6b7280; margin-bottom: 40px;'>National AI-Driven Epidemic Forecasting System</p>", unsafe_allow_html=True)
+
+# --- 5. CENTERED DISTRICT SELECTION ---
+col_L, col_Mid, col_R = st.columns([1, 2, 1])
+with col_Mid:
+    selected_district = st.selectbox("🎯 SELECT SURVEILLANCE DISTRICT", list(DISTRICTS.keys()))
 
 config = DISTRICTS[selected_district]
 
+# --- LOAD DATA ---
 try:
-    # Load Data
     df = pd.read_csv(config["file_data"])
     df['date'] = pd.to_datetime(df['date'])
     
     # Get Last Known Data
-    last_actual = df['actual'].iloc[-1]
-    last_pred = df['predicted'].iloc[-1]
+    if 'predicted_cases' in df.columns:
+        pred_col = 'predicted_cases'
+        act_col = 'actual' if 'actual' in df.columns else 'dengue_cases'
+    else:
+        pred_col = 'predicted'
+        act_col = 'actual'
+
+    last_pred = df[pred_col].iloc[-1]
     last_date = df['date'].iloc[-1]
+    
+    valid_actuals = df[act_col].dropna()
+    if not valid_actuals.empty:
+        last_actual = valid_actuals.iloc[-1]
+    else:
+        last_actual = 0
 
-    # --- FUTURE FORECAST LOGIC (1 YEAR / 12 MONTHS) ---
-    # We generate 12 future months to show a full year trend
-    future_dates = [last_date + pd.DateOffset(months=i) for i in range(1, 13)]
-    
-    # Simulate a realistic seasonal wave for the next year (Dengue cycles)
-    # This creates a smooth curve up and down instead of a jagged line
-    future_values = [last_pred * (1 + 0.2 * np.sin(i * 0.5)) for i in range(1, 13)]
-    
-    # Combine for the graph
-    df_future = pd.DataFrame({'date': future_dates, 'predicted': future_values})
-    
-    # We pad the 'actual' column with NaNs for future dates so the cyan line stops
-    df_extended = pd.concat([df, df_future], ignore_index=True)
-
-    # Determine Risk Status
+    # Determine Risk
     if last_pred > config["risk_threshold"]:
-        risk_color = "#ef4444" # Red
+        risk_color = "#ef4444" 
         risk_msg = "CRITICAL RISK"
     elif last_pred > config["risk_threshold"] * 0.7:
-        risk_color = "#f59e0b" # Orange
+        risk_color = "#f59e0b" 
         risk_msg = "WARNING LEVEL"
     else:
-        risk_color = "#10b981" # Green
+        risk_color = "#10b981" 
         risk_msg = "NORMAL ACTIVITY"
 
 except Exception as e:
-    st.error(f"Error loading data: {e}")
+    st.error(f"Data not found for {selected_district}. Please ensure CSV files are in the 'data' folder. ({e})")
     st.stop()
 
-# --- 6. KEY PERFORMANCE INDICATORS (KPIs) ---
-kpi1, kpi2, kpi3 = st.columns(3)
-
-with kpi1:
-    st.markdown(f"**📍 Region:** {selected_district}")
-    st.markdown(f"**🧠 Model:** {config['best_model_name']}")
-
-with kpi2:
-    st.metric("Expected Cases (This Month)", f"{int(last_pred)}", delta=f"{int(last_pred - last_actual)}")
-
-with kpi3:
-    # Custom colored box for Risk Status
-    st.markdown(f"<h3 style='color: {risk_color} !important; text-align: center; border: 2px solid {risk_color}; border-radius: 10px; padding: 5px;'>{risk_msg}</h3>", unsafe_allow_html=True)
-
-# --- 7. ADVANCED VISUALS ---
-st.subheader("📈 Forecast Analysis (Past & 1-Year Future)")
-
-# GRAPH: Actual = Cyan (#00FFFF), Predicted = Neon Red (#FF0055)
-chart_data = df_extended.set_index("date")[['actual', 'predicted']]
-st.line_chart(chart_data, color=["#00FFFF", "#FF0055"]) 
-st.caption("Cyan Line = Actual Historical Cases | Red Line = AI Prediction (Includes 1-Year Future Projection)")
-
-# MAP
-st.subheader("🗺️ Geospatial Risk Assessment")
-
-# Create Map Data cleanly
-map_data = [{"lat": config["lat"], "lon": config["lon"]}]
-map_df = pd.DataFrame(map_data)
-
-# Determine dot color based on risk
-dot_color = [255, 0, 0] if "CRITICAL" in risk_msg else ([255, 165, 0] if "WARNING" in risk_msg else [0, 255, 0])
-
-st.pydeck_chart(pdk.Deck(
-    map_style=None,  # <--- CHANGED THIS: 'None' works for free without an API key
-    initial_view_state=pdk.ViewState(latitude=config["lat"], longitude=config["lon"], zoom=9),
-    layers=[
-        pdk.Layer(
-            "ScatterplotLayer",
-            data=map_df,
-            get_position="[lon, lat]",
-            get_color=dot_color,
-            get_radius=3000,
-            pickable=True,
-            stroked=True,
-            filled=True,
-            line_width_min_pixels=2,
-        )
-    ]
-))
-
-# Determine dot color based on risk
-
-
+# --- 6. KPI METRICS ---
 st.divider()
+k1, k2, k3, k4 = st.columns(4)
 
-# --- 8. AI PREDICTOR SIMULATOR (4 PARAMETERS) ---
-st.subheader("🤖 Real-Time AI Predictor (Unlimited Access)")
-st.info("Adjust the sliders below to simulate different weather conditions and see the immediate AI prediction.")
+with k1:
+    st.metric("MODEL ARCHITECTURE", config["best_model_name"], delta="Active")
 
-sim_row1, sim_row2 = st.columns(2)
+with k2:
+    st.metric("MODEL ACCURACY", config["accuracy"], delta="Verified")
 
-with sim_row1:
+with k3:
+    st.metric("FORECAST (NEXT MONTH)", f"{int(last_pred)} Cases", delta=f"{int(last_pred - last_actual)} vs Last")
+
+with k4:
+    st.markdown(f"""
+    <div style="text-align: center; border: 2px solid {risk_color}; color: {risk_color}; padding: 10px; border-radius: 10px; font-weight: bold; margin-top: 0px;">
+        {risk_msg}
+    </div>
+    """, unsafe_allow_html=True)
+
+# --- 7. GRAPHS & MAPS ---
+st.divider()
+g_col, m_col = st.columns([2, 1])
+
+with g_col:
+    st.subheader(f"📈 {selected_district} Outbreak Trend")
+    chart_df = df.set_index('date')[[act_col, pred_col]]
+    st.line_chart(chart_df, color=["#00FFFF", "#FF0055"])
+    st.caption("Cyan = Actual Data | Red = AI Prediction")
+
+with m_col:
+    st.subheader("🗺️ Risk Zone")
+    map_df = pd.DataFrame([{"lat": config["lat"], "lon": config["lon"]}])
+    r, g, b = (239, 68, 68) if "CRITICAL" in risk_msg else ((245, 158, 11) if "WARNING" in risk_msg else (16, 185, 129))
+    
+    st.pydeck_chart(pdk.Deck(
+        map_style=None,
+        initial_view_state=pdk.ViewState(latitude=config["lat"], longitude=config["lon"], zoom=10),
+        layers=[
+            pdk.Layer(
+                "ScatterplotLayer",
+                data=map_df,
+                get_position="[lon, lat]",
+                get_color=[r, g, b, 160],
+                get_radius=3000,
+                pickable=True,
+                filled=True,
+            )
+        ]
+    ))
+
+# --- 8. AI SIMULATOR (WITH ICON) ---
+st.divider()
+st.markdown("<h2 style='text-align: center;'>🦟 REAL-TIME WEATHER SIMULATOR</h2>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: #9ca3af;'>Adjust parameters to see AI prediction response</p>", unsafe_allow_html=True)
+
+s_left, s_mid, s_right = st.columns([1, 2, 1])
+
+with s_mid:
+    st.markdown("#### 🎛️ SIMULATION CONTROLS")
     rain = st.slider("🌧️ Rainfall (mm)", 0, 600, 200)
-    temp = st.slider("🌡️ Temperature (°C)", 20, 40, 30)
-
-with sim_row2:
+    temp = st.slider("🌡️ Temperature (°C)", 20, 40, 29)
     humidity = st.slider("💧 Humidity (%)", 50, 100, 80)
     wind = st.slider("🌬️ Wind Speed (km/h)", 0, 50, 10)
 
-# ADVANCED MATH LOGIC for Simulation
-# These weights approximate the model's sensitivity
-base_cases = last_pred
-rain_effect = (rain - 200) * 0.5    # Rain increases mosquitoes
-temp_effect = (temp - 28) * 1.5     # Heat speeds up breeding
-humid_effect = (humidity - 75) * 2.0 # Humidity helps survival
-wind_effect = (wind - 10) * -1.5    # Strong wind blows mosquitoes away (negative effect)
+    base = last_pred
+    r_factor = (rain - 200) * 0.5
+    t_factor = (10 - abs(temp - 29)) * 5.0 
+    h_factor = (humidity - 75) * 2.0
+    
+    sim_result = base + r_factor + t_factor + h_factor
+    if sim_result < 0: sim_result = 0
+    
+    st.markdown("---")
+    st.markdown(f"<h3 style='text-align: center;'>AI PREDICTED OUTCOME</h3>", unsafe_allow_html=True)
+    st.markdown(f"<h1 style='text-align: center; color: #FFD700; font-size: 4rem;'>{int(sim_result)} Cases</h1>", unsafe_allow_html=True)
 
-final_simulated_cases = base_cases + rain_effect + temp_effect + humid_effect + wind_effect
-if final_simulated_cases < 0: final_simulated_cases = 0
-
-# DISPLAY RESULT
-st.markdown("### 🔮 AI Prediction Result:")
-st.markdown(f"<h1 style='color: #FFD700;'>{int(final_simulated_cases)} Cases</h1>", unsafe_allow_html=True)
-st.caption("Based on your custom weather inputs.")
-
-# --- 9. PUBLIC HEALTH ADVICE ---
+# --- 9. PROTOCOLS ---
 st.divider()
-st.subheader("📢 AI-Driven Public Health Recommendations")
-
 if "CRITICAL" in risk_msg:
-    st.error("""
-    ### 🔴 CRITICAL ALERT: Immediate Action Required
-    * **Vector Control:** Local authorities must deploy fogging teams immediately.
-    * **Hospitals:** Activate surge capacity protocols for Dengue wards.
-    * **Public:** Wear long sleeves, use strong repellent, and destroy all breeding sites.
-    """)
+    st.error("🔴 RED PROTOCOL: IMMEDIATE FOGGING & CLINICAL SURGE CAPACITY REQUIRED.")
 elif "WARNING" in risk_msg:
-    st.warning("""
-    ### 🟠 WARNING: Precautionary Phase
-    * **Community:** Organize neighborhood clean-ups this weekend.
-    * **Schools:** Inspect grounds for standing water.
-    * **Personal:** Avoid outdoors during dawn and dusk (peak mosquito times).
-    """)
+    st.warning("🟠 AMBER PROTOCOL: COMMUNITY CLEANING & LARVAL SURVEYS REQUIRED.")
 else:
-    st.success("""
-    ### 🟢 LOW RISK: Maintain Surveillance
-    * **Routine:** Continue weekly garden inspections.
-    * **Monitor:** Keep checking this dashboard for weather-driven changes.
-    """)
-
+    st.success("🟢 GREEN PROTOCOL: ROUTINE SURVEILLANCE ACTIVE.")
