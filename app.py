@@ -81,13 +81,13 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # --- 3. SYSTEM CONFIGURATION ---
-# UPDATED: File paths now point to the same folder (no "data/" prefix)
+# UPDATED: ALL FILENAMES NOW MATCH "FINAL_DASHBOARD_..."
 DISTRICTS = {
     "Colombo": {
         "lat": 6.9271, "lon": 79.8612,
         "best_model_name": "Hybrid Ensemble (XGBoost + LSTM)",
         "accuracy": "72.4%",  
-        "file_data": "dashboard_data_colombo.csv", 
+        "file_data": "FINAL_DASHBOARD_colombo.csv",  # <--- FIXED THIS LINE
         "risk_threshold": 2000
     },
     "Katugastota": {
@@ -110,7 +110,6 @@ DISTRICTS = {
 st.markdown("<div class='ministry-header'>MINISTRY OF HEALTH - SRI LANKA GOVERNMENT</div>", unsafe_allow_html=True)
 st.markdown("<div class='board-header'>DENGUE SURVEILLANCE BOARD</div>", unsafe_allow_html=True)
 
-# THE NEW HEADER WITH THE MOSQUITO
 st.markdown("""
     <div class='system-name'>
         <span class='mosquito-icon'>🦟</span> 
