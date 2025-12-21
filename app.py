@@ -54,7 +54,7 @@ st.markdown("""
         align-items: center;
         gap: 15px; /* Space between icon and text */
     }
-    /* MOSQUITO ICON ANIMATION (Optional Pulse) */
+    /* MOSQUITO ICON ANIMATION */
     .mosquito-icon {
         font-size: 4rem;
         animation: float 3s ease-in-out infinite;
@@ -81,31 +81,32 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # --- 3. SYSTEM CONFIGURATION ---
+# UPDATED: File paths now point to the same folder (no "data/" prefix)
 DISTRICTS = {
     "Colombo": {
         "lat": 6.9271, "lon": 79.8612,
         "best_model_name": "Hybrid Ensemble (XGBoost + LSTM)",
         "accuracy": "72.4%",  
-        "file_data": "data/dashboard_data_colombo.csv",
+        "file_data": "dashboard_data_colombo.csv", 
         "risk_threshold": 2000
     },
     "Katugastota": {
         "lat": 7.3256, "lon": 80.6211,
         "best_model_name": "XGBoost (Machine Learning)",
         "accuracy": "84.9%",  
-        "file_data": "data/FINAL_DASHBOARD_katugastota.csv",
+        "file_data": "FINAL_DASHBOARD_katugastota.csv",
         "risk_threshold": 300
     },
     "Ratnapura": {
         "lat": 6.6828, "lon": 80.3990,
         "best_model_name": "Gradient Boosting (Log-Transform)",
         "accuracy": "61.3%", 
-        "file_data": "data/FINAL_DASHBOARD_ratnapura.csv",
+        "file_data": "FINAL_DASHBOARD_ratnapura.csv",
         "risk_threshold": 400
     }
 }
 
-# --- 4. OFFICIAL HEADER SECTION (UPDATED WITH ICON) ---
+# --- 4. OFFICIAL HEADER SECTION ---
 st.markdown("<div class='ministry-header'>MINISTRY OF HEALTH - SRI LANKA GOVERNMENT</div>", unsafe_allow_html=True)
 st.markdown("<div class='board-header'>DENGUE SURVEILLANCE BOARD</div>", unsafe_allow_html=True)
 
@@ -129,10 +130,12 @@ config = DISTRICTS[selected_district]
 
 # --- LOAD DATA ---
 try:
+    # Load directly (assumes file is next to app.py)
     df = pd.read_csv(config["file_data"])
     df['date'] = pd.to_datetime(df['date'])
     
     # Get Last Known Data
+    # Auto-detect column names based on different exports
     if 'predicted_cases' in df.columns:
         pred_col = 'predicted_cases'
         act_col = 'actual' if 'actual' in df.columns else 'dengue_cases'
@@ -143,6 +146,7 @@ try:
     last_pred = df[pred_col].iloc[-1]
     last_date = df['date'].iloc[-1]
     
+    # Handle NaNs in actuals for future dates
     valid_actuals = df[act_col].dropna()
     if not valid_actuals.empty:
         last_actual = valid_actuals.iloc[-1]
@@ -161,7 +165,7 @@ try:
         risk_msg = "NORMAL ACTIVITY"
 
 except Exception as e:
-    st.error(f"Data not found for {selected_district}. Please ensure CSV files are in the 'data' folder. ({e})")
+    st.error(f"⚠️ ERROR: Could not find file '{config['file_data']}'. Please make sure the CSV file is in the same folder as this script!")
     st.stop()
 
 # --- 6. KPI METRICS ---
@@ -190,6 +194,7 @@ g_col, m_col = st.columns([2, 1])
 
 with g_col:
     st.subheader(f"📈 {selected_district} Outbreak Trend")
+    # Clean data for chart
     chart_df = df.set_index('date')[[act_col, pred_col]]
     st.line_chart(chart_df, color=["#00FFFF", "#FF0055"])
     st.caption("Cyan = Actual Data | Red = AI Prediction")
@@ -197,6 +202,8 @@ with g_col:
 with m_col:
     st.subheader("🗺️ Risk Zone")
     map_df = pd.DataFrame([{"lat": config["lat"], "lon": config["lon"]}])
+    
+    # Color logic
     r, g, b = (239, 68, 68) if "CRITICAL" in risk_msg else ((245, 158, 11) if "WARNING" in risk_msg else (16, 185, 129))
     
     st.pydeck_chart(pdk.Deck(
@@ -220,6 +227,7 @@ st.divider()
 st.markdown("<h2 style='text-align: center;'>🦟 REAL-TIME WEATHER SIMULATOR</h2>", unsafe_allow_html=True)
 st.markdown("<p style='text-align: center; color: #9ca3af;'>Adjust parameters to see AI prediction response</p>", unsafe_allow_html=True)
 
+# Layout: Spacer | Controls | Spacer
 s_left, s_mid, s_right = st.columns([1, 2, 1])
 
 with s_mid:
@@ -229,9 +237,10 @@ with s_mid:
     humidity = st.slider("💧 Humidity (%)", 50, 100, 80)
     wind = st.slider("🌬️ Wind Speed (km/h)", 0, 50, 10)
 
+    # Simulation Logic
     base = last_pred
     r_factor = (rain - 200) * 0.5
-    t_factor = (10 - abs(temp - 29)) * 5.0 
+    t_factor = (10 - abs(temp - 29)) * 5.0 # Sweet spot at 29
     h_factor = (humidity - 75) * 2.0
     
     sim_result = base + r_factor + t_factor + h_factor
