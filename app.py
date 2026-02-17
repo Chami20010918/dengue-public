@@ -225,20 +225,34 @@ with col_details:
         """, unsafe_allow_html=True)
 
 # --- 8. TREND ANALYSIS ---
-st.markdown("---")
-st.subheader("🔍 Trend Trajectory (2023 - 2026)")
-target_city = st.selectbox("Select District for Deep Dive", list(DISTRICTS.keys()))
+t_trend, t_sim = st.tabs(["📈 Trend Chart", "🤖 Scenario Simulator"])
 
-try:
-    df_chart = pd.read_csv(DISTRICTS[target_city]["file"])
-    df_chart['date'] = pd.to_datetime(df_chart['date'])
-    df_chart = df_chart[df_chart['date'] >= '2023-01-01']
-    df_chart = df_chart.rename(columns={'predicted_cases':'Predicted', 'predicted':'Predicted', 'actual':'Actual', 'dengue_cases':'Actual'})
-    
-    plot_cols = [c for c in ['Actual', 'Predicted'] if c in df_chart.columns]
-    clean_chart = df_chart.set_index('date')[plot_cols].fillna(0)
-    
+with t_trend:
     st.line_chart(clean_chart, color=["#22d3ee", "#ef4444"])
-    st.caption("Data focuses on the 2023-2026 window to eliminate pandemic-era statistical noise.")
-except:
-    st.error(f"Waiting for data stream from {target_city} node.")
+
+with t_sim:
+    st.markdown(f"### ⚡ Environmental Stress Test: {target_city}")
+    st.write("Adjust parameters to see how extreme weather impacts the February forecast.")
+    
+    # Get the baseline prediction for the selected city
+    base_val = next((d['cases'] for d in dashboard_data if d['name'] == target_city), 0)
+    
+    c1, c2, c3 = st.columns(3)
+    with c1: rain = st.slider("Rainfall (mm)", 0, 600, 200)
+    with c2: temp = st.slider("Avg Temp (°C)", 22, 38, 29)
+    with c3: hum = st.slider("Humidity (%)", 50, 100, 75)
+    
+    # Simulation Logic (Weighted impacts)
+    # Increase in rain/temp/hum usually boosts mosquito breeding
+    sim_delta = int(((rain - 200) * 0.5) + ((temp - 29) * 12) + ((hum - 75) * 4))
+    sim_final = max(0, base_val + sim_delta)
+    
+    st.markdown("---")
+    res1, res2 = st.columns([1, 2])
+    with res1:
+        st.metric("Simulated Forecast", f"{sim_final}", delta=f"{sim_delta} cases")
+    with res2:
+        if sim_delta > 50:
+            st.warning("⚠️ **VULNERABILITY DETECTED:** Current weather settings significantly increase breeding risk.")
+        else:
+            st.success("✅ **STABLE:** Environmental factors are within manageable AI thresholds.")
