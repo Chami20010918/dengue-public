@@ -123,7 +123,7 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 if critical_zones:
-    st.markdown(f'<div class="emergency-banner">ALERT: Outbreak Levels in {", ".join(critical_zones)} for Feb 2026</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="emergency-banner">🚨 ALERT: Outbreak Levels in {", ".join(critical_zones)} for Feb 2026</div>', unsafe_allow_html=True)
 
 # --- 5. KPIs ---
 total_cases = sum(d['cases'] for d in dashboard_data)
@@ -140,16 +140,32 @@ col_map, col_details = st.columns([2, 1])
 
 with col_map:
     st.subheader("🗺️ Risk Map (February 2026)")
+    # View State Centered on Sri Lanka
     view_state = pdk.ViewState(latitude=7.8731, longitude=80.7718, zoom=6.5, pitch=40)
-    layer = pdk.Layer("ScatterplotLayer", data=pd.DataFrame(dashboard_data), get_position="[lon, lat]", get_color="color", get_radius="radius", pickable=True, opacity=0.4, filled=True, stroked=True, line_width_min_pixels=2, line_color=[255, 255, 255, 150])
-    # Change map_style to a simple string and set map_provider to 'carto'
-st.pydeck_chart(pdk.Deck(
-    map_provider="carto",  # Use Carto instead of Mapbox
-    map_style="dark",      # Options: 'light' or 'dark'
-    initial_view_state=view_state, 
-    layers=[layer],
-    tooltip={"text": "{name}\nForecast: {cases}\nStatus: {status}"}
-))
+    
+    layer = pdk.Layer(
+        "ScatterplotLayer", 
+        data=pd.DataFrame(dashboard_data), 
+        get_position="[lon, lat]", 
+        get_color="color", 
+        get_radius="radius", 
+        pickable=True, 
+        opacity=0.4, 
+        filled=True, 
+        stroked=True, 
+        line_width_min_pixels=2, 
+        line_color=[255, 255, 255, 150]
+    )
+
+    # FIXED: st.pydeck_chart is now correctly indented inside 'with col_map'
+    st.pydeck_chart(pdk.Deck(
+        map_provider="carto",
+        map_style="dark",
+        initial_view_state=view_state,
+        layers=[layer],
+        tooltip={"text": "{name}\nForecast: {cases}\nStatus: {status}"}
+    ))
+
 with col_details:
     st.subheader("📋 Regional Status")
     for city in dashboard_data:
@@ -161,7 +177,6 @@ with col_details:
 st.markdown("---")
 target_city = st.selectbox("Detailed Analysis", list(DISTRICTS.keys()))
 
-# Robust Variable Initialization
 clean_chart = pd.DataFrame()
 
 try:
@@ -183,18 +198,16 @@ with t_trend:
         st.warning("No trend data available.")
 
 with t_sim:
-    st.markdown(f"### ⚡ Scenario Dengue Case Test: {target_city}")
+    st.markdown(f"### ⚡ Scenario Stress Test: {target_city}")
     base_val = next((d['cases'] for d in dashboard_data if d['name'] == target_city), 0)
     
-    # 4-Column Layout for Inputs
     c1, c2, c3, c4 = st.columns(4)
     with c1: rain = st.slider("Rainfall (mm)", 0, 600, 200)
     with c2: temp = st.slider("Temp (°C)", 22, 38, 29)
     with c3: hum = st.slider("Humidity (%)", 50, 100, 75)
     with c4: wind = st.slider("Wind (km/h)", 0, 60, 15)
     
-    # SIMULATION LOGIC
-    # High wind speeds (> 20 km/h) reduce breeding efficiency
+    # Logic: Rain/Temp/Hum increase risk; Wind decreases it
     sim_delta = int(((rain - 200) * 0.5) + ((temp - 29) * 12) + ((hum - 75) * 4) - ((wind - 15) * 3))
     sim_final = max(0, base_val + sim_delta)
     
@@ -203,10 +216,8 @@ with t_sim:
         st.metric("Simulated Forecast", f"{sim_final}", delta=f"{sim_delta}")
     with s_col2: 
         if wind > 40:
-            st.info("🍃 Strong winds detected: Breeding efficiency reduced despite other factors.")
+            st.info("🍃 High winds disrupting mosquito flight patterns.")
         elif sim_delta > 50:
-            st.warning("🚨 High Risk: Environment favoring rapid mosquito proliferation.")
+            st.warning("🚨 High Risk: Environment supports rapid outbreak.")
         else:
-            st.success("Stable: No significant environmental threat detected.")
-
-
+            st.success("Stable: Environmental risk is within normal bounds.")
