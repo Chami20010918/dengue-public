@@ -142,8 +142,14 @@ with col_map:
     st.subheader("🗺️ Risk Map (February 2026)")
     view_state = pdk.ViewState(latitude=7.8731, longitude=80.7718, zoom=6.5, pitch=40)
     layer = pdk.Layer("ScatterplotLayer", data=pd.DataFrame(dashboard_data), get_position="[lon, lat]", get_color="color", get_radius="radius", pickable=True, opacity=0.4, filled=True, stroked=True, line_width_min_pixels=2, line_color=[255, 255, 255, 150])
-    st.pydeck_chart(pdk.Deck(map_style="mapbox://styles/mapbox/dark-v10", initial_view_state=view_state, layers=[layer], tooltip={"text": "{name}\nForecast: {cases}\nStatus: {status}"}))
-
+    # Change map_style to a simple string and set map_provider to 'carto'
+st.pydeck_chart(pdk.Deck(
+    map_provider="carto",  # Use Carto instead of Mapbox
+    map_style="dark",      # Options: 'light' or 'dark'
+    initial_view_state=view_state, 
+    layers=[layer],
+    tooltip={"text": "{name}\nForecast: {cases}\nStatus: {status}"}
+))
 with col_details:
     st.subheader("📋 Regional Status")
     for city in dashboard_data:
@@ -202,4 +208,5 @@ with t_sim:
             st.warning("🚨 High Risk: Environment favoring rapid mosquito proliferation.")
         else:
             st.success("Stable: No significant environmental threat detected.")
+
 
