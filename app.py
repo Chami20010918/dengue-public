@@ -123,7 +123,7 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 if critical_zones:
-    st.markdown(f'<div class="emergency-banner">🚨 ALERT: Outbreak Levels in {", ".join(critical_zones)} for Feb 2026</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="emergency-banner">ALERT: Outbreak Levels in {", ".join(critical_zones)} for Feb 2026</div>', unsafe_allow_html=True)
 
 # --- 5. KPIs ---
 total_cases = sum(d['cases'] for d in dashboard_data)
@@ -177,7 +177,7 @@ with t_trend:
         st.warning("No trend data available.")
 
 with t_sim:
-    st.markdown(f"### ⚡ Scenario Stress Test: {target_city}")
+    st.markdown(f"### ⚡ Scenario Dengue Case Test: {target_city}")
     base_val = next((d['cases'] for d in dashboard_data if d['name'] == target_city), 0)
     
     # 4-Column Layout for Inputs
@@ -202,3 +202,4 @@ with t_sim:
             st.warning("🚨 High Risk: Environment favoring rapid mosquito proliferation.")
         else:
             st.success("Stable: No significant environmental threat detected.")
+
