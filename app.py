@@ -155,7 +155,7 @@ with col_details:
 st.markdown("---")
 target_city = st.selectbox("Detailed Analysis", list(DISTRICTS.keys()))
 
-# Initialize clean_chart as empty to avoid NameError
+# Robust Variable Initialization
 clean_chart = pd.DataFrame()
 
 try:
@@ -166,7 +166,7 @@ try:
     plot_cols = [c for c in ['Actual', 'Predicted'] if c in df_chart.columns]
     clean_chart = df_chart.set_index('date')[plot_cols].fillna(0)
 except:
-    st.error("Data source error.")
+    st.error("Data source error for this district.")
 
 t_trend, t_sim = st.tabs(["📈 Trend Chart", "🤖 Weather Simulator"])
 
@@ -180,16 +180,25 @@ with t_sim:
     st.markdown(f"### ⚡ Scenario Stress Test: {target_city}")
     base_val = next((d['cases'] for d in dashboard_data if d['name'] == target_city), 0)
     
-    c1, c2, c3 = st.columns(3)
+    # 4-Column Layout for Inputs
+    c1, c2, c3, c4 = st.columns(4)
     with c1: rain = st.slider("Rainfall (mm)", 0, 600, 200)
     with c2: temp = st.slider("Temp (°C)", 22, 38, 29)
     with c3: hum = st.slider("Humidity (%)", 50, 100, 75)
+    with c4: wind = st.slider("Wind (km/h)", 0, 60, 15)
     
-    sim_delta = int(((rain - 200) * 0.5) + ((temp - 29) * 12) + ((hum - 75) * 4))
+    # SIMULATION LOGIC
+    # High wind speeds (> 20 km/h) reduce breeding efficiency
+    sim_delta = int(((rain - 200) * 0.5) + ((temp - 29) * 12) + ((hum - 75) * 4) - ((wind - 15) * 3))
     sim_final = max(0, base_val + sim_delta)
     
     s_col1, s_col2 = st.columns([1, 2])
-    with s_col1: st.metric("Simulated Forecast", f"{sim_final}", delta=f"{sim_delta}")
+    with s_col1:
+        st.metric("Simulated Forecast", f"{sim_final}", delta=f"{sim_delta}")
     with s_col2: 
-        if sim_delta > 50: st.warning("Extreme weather conditions boost predicted breeding rate.")
-        else: st.success("Environment within AI-predicted thresholds.")
+        if wind > 40:
+            st.info("🍃 Strong winds detected: Breeding efficiency reduced despite other factors.")
+        elif sim_delta > 50:
+            st.warning("🚨 High Risk: Environment favoring rapid mosquito proliferation.")
+        else:
+            st.success("Stable: No significant environmental threat detected.")
